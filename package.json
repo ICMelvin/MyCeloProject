@@ -1,0 +1,42 @@
+{
+  "name": "falconguard-scan-agent",
+  "version": "1.0.0",
+  "description": "FalconGuard Scan-Agent — x402-metered smart contract security scanner on Celo",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "mcp": "tsx src/mcp/mcpServer.ts",
+    "client-agent": "tsx src/client-agent/autoScanner.ts"
+  },
+  "keywords": [
+    "celo",
+    "x402",
+    "security",
+    "slither",
+    "mcp",
+    "ai-agent",
+    "defai"
+  ],
+  "author": "IC Melvin (FalconGuard Pro)",
+  "license": "MIT",
+  "dependencies": {
+    "@celo/attribution-tags": "^0.3.0",
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "thirdweb": "^5.93.0",
+    "viem": "^2.22.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
