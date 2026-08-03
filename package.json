@@ -8,7 +8,8 @@
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "mcp": "tsx src/mcp/mcpServer.ts",
-    "client-agent": "tsx src/client-agent/autoScanner.ts"
+    "client-agent": "tsx src/client-agent/autoScanner.ts",
+    "scan-once": "tsx src/client-agent/autoScanner.ts"
   },
   "keywords": [
     "celo",
@@ -24,6 +25,9 @@
   "dependencies": {
     "@celo/attribution-tags": "^0.3.0",
     "@modelcontextprotocol/sdk": "^1.6.0",
+    "@x402/core": "^2.0.0",
+    "@x402/evm": "^2.0.0",
+    "@x402/express": "^2.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
