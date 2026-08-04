@@ -62,8 +62,6 @@ const LOCAL_CONTRACTS = [
 const CELO_SEPOLIA_CONTRACTS = [
   // USDC on Celo Sepolia (verified working)
   '0x01C5C0122039549AD1493B8220cABEdD739BC44E',
-  // Celo Native Asset (CELO) - wrapped or proxy contracts
-  '0xE4A9e9d5D3F0C8F8A7B8C8D8E8F8A8B8C8D8E8F8A',
 ];
 
 // ─── Tx Logger ────────────────────────────────────────────────────────────────
