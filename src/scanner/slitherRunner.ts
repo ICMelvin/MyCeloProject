@@ -9,7 +9,9 @@ export async function runSlitherScan(
   timeoutMs: number = 30000
 ): Promise<{ findings: SecurityFinding[]; slitherRan: boolean; error?: string }> {
   return new Promise((resolve) => {
-    // Sanitize path to prevent shell injection / traversal risks
+    // SECURITY WARNING: This function accepts arbitrary file paths.
+    // Only call with trusted paths (temp files or internal local files).
+    // Never call with user-controlled input from the public API.
     const resolvedPath = path.resolve(targetPath);
     if (!fs.existsSync(resolvedPath)) {
       return resolve({

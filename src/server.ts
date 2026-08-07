@@ -68,7 +68,7 @@ app.get('/health', (_req: Request, res: Response) => {
       price: X402_CONFIG.pricePerScan,
       network: X402_CONFIG.network,
       facilitator: X402_CONFIG.facilitatorUrl,
-      payTo: X402_CONFIG.payTo,
+      // payTo omitted from public endpoint for privacy
       attributionTag: X402_CONFIG.attributionTag,
       dataSuffix: X402_CONFIG.dataSuffix,
     },
@@ -107,58 +107,105 @@ const routes: RoutesConfig = {
   },
 };
 
-app.use(paymentMiddleware(routes, server));
+// ─── Security Validation Functions ─────────────────────────────────────────────
+// Pure function to validate contract address format (no Express dependencies)
+export function isValidContractAddress(input: string): boolean {
+  if (!input || typeof input !== 'string') {
+    return false;
+  }
+  return /^0x[a-fA-F0-9]{40}$/.test(input);
+}
+
+// Dev-only payment bypass for testing (NEVER enable in production)
+const SKIP_PAYMENT = process.env.SKIP_PAYMENT_FOR_TESTS === 'true' && process.env.NODE_ENV !== 'production';
+if (SKIP_PAYMENT) {
+  console.warn('⚠️  WARNING: PAYMENT MIDDLEWARE BYPASSED (SKIP_PAYMENT_FOR_TESTS=true, NODE_ENV != production)');
+  console.warn('⚠️  THIS FLAG MUST NEVER BE SET IN PRODUCTION');
+}
+
+// Apply payment middleware only if not bypassed
+if (!SKIP_PAYMENT) {
+  app.use(paymentMiddleware(routes, server));
+}
 
 // ─── Core Scan Execution ─────────────────────────────────────────────────────
-export async function executeScan(
-  targetPathOrCode: string,
-  isCodeString: boolean = false,
-): Promise<ScanReport> {
+// Public API: Scan from source code string (safe, no filesystem access)
+export async function executeScanFromSource(sourceCode: string): Promise<ScanReport> {
   const startTime = Date.now();
-  let tempFilePath: string | null = null;
-  let filePathToScan = targetPathOrCode;
-  let rawSourceCode = '';
+  const tempFilePath = path.join(
+    os.tmpdir(),
+    `fg-scan-${Date.now()}-${Math.floor(Math.random() * 10000)}.sol`,
+  );
+  fs.writeFileSync(tempFilePath, sourceCode);
 
-  if (isCodeString) {
-    // Write inline source code to a temp file so Slither can analyse it
-    tempFilePath = path.join(
-      os.tmpdir(),
-      `fg-scan-${Date.now()}-${Math.floor(Math.random() * 10000)}.sol`,
+  try {
+    // 1. Run Slither static analysis (subprocess, sandboxed, no shell)
+    const slitherResult = await runSlitherScan(tempFilePath, 30000);
+
+    // 2. Run FalconGuard custom vulnerability pattern checks
+    const customFindings = runCustomChecks(sourceCode, path.basename(tempFilePath));
+
+    const combinedFindings = [...slitherResult.findings, ...customFindings];
+    const scanDurationMs = Date.now() - startTime;
+
+    return buildScanReport(
+      tempFilePath,
+      combinedFindings,
+      slitherResult.slitherRan,
+      true,
+      scanDurationMs,
     );
-    fs.writeFileSync(tempFilePath, targetPathOrCode);
-    filePathToScan = tempFilePath;
-    rawSourceCode = targetPathOrCode;
-  } else if (fs.existsSync(targetPathOrCode) && fs.statSync(targetPathOrCode).isFile()) {
-    rawSourceCode = fs.readFileSync(targetPathOrCode, 'utf-8');
-  }
-
-  // 1. Run Slither static analysis (subprocess, sandboxed, no shell)
-  const slitherResult = await runSlitherScan(filePathToScan, 30000);
-
-  // 2. Run FalconGuard custom vulnerability pattern checks
-  const customFindings = rawSourceCode
-    ? runCustomChecks(rawSourceCode, path.basename(filePathToScan))
-    : [];
-
-  // Cleanup temp file
-  if (tempFilePath && fs.existsSync(tempFilePath)) {
-    try {
-      fs.unlinkSync(tempFilePath);
-    } catch {
-      // Non-fatal
+  } finally {
+    // Cleanup temp file
+    if (fs.existsSync(tempFilePath)) {
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch {
+        // Non-fatal
+      }
     }
   }
+}
+
+// Internal use only: Scan from local file path (for autoScanner.ts and test-contracts/)
+// WARNING: Do NOT call this with user-controlled input from the public API
+export async function executeScanFromLocalFile(filePath: string): Promise<ScanReport> {
+  const startTime = Date.now();
+  
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    throw new Error(`File not found or not a regular file: ${filePath}`);
+  }
+
+  const rawSourceCode = fs.readFileSync(filePath, 'utf-8');
+
+  // 1. Run Slither static analysis (subprocess, sandboxed, no shell)
+  const slitherResult = await runSlitherScan(filePath, 30000);
+
+  // 2. Run FalconGuard custom vulnerability pattern checks
+  const customFindings = runCustomChecks(rawSourceCode, path.basename(filePath));
 
   const combinedFindings = [...slitherResult.findings, ...customFindings];
   const scanDurationMs = Date.now() - startTime;
 
   return buildScanReport(
-    filePathToScan,
+    filePath,
     combinedFindings,
     slitherResult.slitherRan,
     true,
     scanDurationMs,
   );
+}
+
+// Legacy function for backward compatibility (internal use only)
+export async function executeScan(
+  targetPathOrCode: string,
+  isCodeString: boolean = false,
+): Promise<ScanReport> {
+  if (isCodeString) {
+    return executeScanFromSource(targetPathOrCode);
+  } else {
+    return executeScanFromLocalFile(targetPathOrCode);
+  }
 }
 
 // ─── POST /scan — x402-gated scan endpoint ───────────────────────────────────
@@ -174,9 +221,19 @@ app.post('/scan', async (req: Request, res: Response) => {
       return;
     }
 
+    // ── Security: contractPath must be a valid 0x address only ────────────────
+    // Reject any non-address contractPath to prevent path traversal attacks
+    if (contractPath && !isValidContractAddress(contractPath)) {
+      res.status(400).json({
+        error: 'Invalid contract path format.',
+        hint: 'contractPath must be a valid 42-character hex address (0x...). For scanning local files, use the sourceCode parameter instead.',
+      });
+      return;
+    }
+
     // ── On-chain contract validation (when contractPath is a 0x address) ──────
     // Reject EOA (regular wallet) addresses before executing any scan or charge.
-    if (contractPath && /^0x[a-fA-F0-9]{40}$/.test(contractPath)) {
+    if (contractPath) {
       if (!isAddress(contractPath)) {
         res.status(400).json({
           error: 'Invalid Ethereum address format.',
@@ -204,9 +261,19 @@ app.post('/scan', async (req: Request, res: Response) => {
       }
     }
 
-    const isCodeString = Boolean(sourceCode);
-    const target = sourceCode || contractPath;
-    const report = await executeScan(target, isCodeString);
+    // ── Execute scan using safe public API function ─────────────────────────
+    // Note: For on-chain addresses, source code must be provided via sourceCode parameter
+    // On-chain source code fetching is not implemented in this version
+    let report: ScanReport;
+    if (sourceCode) {
+      report = await executeScanFromSource(sourceCode);
+    } else {
+      res.status(400).json({
+        error: 'Source code required for contract address scanning.',
+        hint: 'For scanning on-chain contracts, please provide the source code using the sourceCode parameter. contractPath is reserved for future on-chain source code fetching.',
+      });
+      return;
+    }
 
     // Return markdown if requested, otherwise JSON
     if (format === 'markdown' || format === 'md') {

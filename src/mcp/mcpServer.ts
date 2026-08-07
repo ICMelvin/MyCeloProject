@@ -136,6 +136,20 @@ mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
+    // ── Security: contractPath must be a valid 0x address only ────────────────
+    // Reject any non-address contractPath to prevent path traversal attacks
+    if (contractPath && !/^0x[a-fA-F0-9]{40}$/.test(contractPath)) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: contractPath must be a valid 42-character hex address (0x...). For scanning local files, use the sourceCode parameter instead.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
     try {
       const isCode = Boolean(sourceCode);
       const target = (sourceCode || contractPath) as string;
