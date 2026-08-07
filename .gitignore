@@ -3,3 +3,4 @@ dist/
 .env
 *.log
 tx-log.md
+*.zip

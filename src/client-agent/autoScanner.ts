@@ -1,3 +1,4 @@
+
 /**
  * FalconGuard Scan-Agent — Autonomous Client
  *
@@ -56,11 +57,14 @@ const celoSepolia = {
 const LOCAL_CONTRACTS = [
   './test-contracts/VulnerableVault.sol',
   './test-contracts/UnsafeDelegate.sol',
+  './test-contracts/FlashLoanVulnerable.sol',
+  './test-contracts/TimestampManipulation.sol',
+  './test-contracts/GasLimitIssue.sol',
 ];
 
 // Real Celo Sepolia ecosystem contracts to scan
 const CELO_SEPOLIA_CONTRACTS = [
-  // USDC on Celo Sepolia (verified working)
+  // USDC on Celo Sepolia (officially supported by x402 facilitator)
   '0x01C5C0122039549AD1493B8220cABEdD739BC44E',
 ];
 

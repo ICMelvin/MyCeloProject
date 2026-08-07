@@ -4,12 +4,13 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import { createPublicClient, http as viemHttp, isAddress } from 'viem';
 import { paymentMiddleware, x402ResourceServer } from '@x402/express';
 import { HTTPFacilitatorClient, type RoutesConfig } from '@x402/core/server';
 import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { runSlitherScan } from './scanner/slitherRunner.js';
 import { runCustomChecks } from './scanner/customChecks.js';
-import { buildScanReport, ScanReport } from './scanner/reportBuilder.js';
+import { buildScanReport, ScanReport, generateMarkdownReport } from './scanner/reportBuilder.js';
 import {
   X402_CONFIG,
   getAttributionDataSuffix,
@@ -24,6 +25,17 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 
 const PORT = process.env.PORT || 3000;
+
+// ─── Celo RPC Public Client (for on-chain contract validation) ────────────────
+const RPC_URL = process.env.RPC_URL || (
+  CELO_NETWORK === 'eip155:42220'
+    ? 'https://forno.celo.org'
+    : 'https://forno.celo-sepolia.celo-testnet.org'
+);
+
+const publicClient = createPublicClient({
+  transport: viemHttp(RPC_URL),
+});
 
 // ─── x402 v2 Facilitator Setup (Celo-hosted) ───────────────────────────────────
 const facilitatorUrl = CELO_NETWORK === 'eip155:42220'
@@ -82,7 +94,7 @@ const routes: RoutesConfig = {
         network: CELO_NETWORK,
         payTo: X402_CONFIG.payTo,
         price: {
-          amount: '10000', // $0.01 — USDC has 6 decimals
+          amount: '100000', // $0.10 — USDC has 6 decimals
           asset: USDC_ADDRESS,
           extra: {
             name: 'USDC',
@@ -153,6 +165,7 @@ export async function executeScan(
 app.post('/scan', async (req: Request, res: Response) => {
   try {
     const { contractPath, sourceCode } = req.body;
+    const format = req.query.format as string || 'json'; // Support 'json' or 'markdown'
 
     if (!contractPath && !sourceCode) {
       res.status(400).json({
@@ -161,11 +174,47 @@ app.post('/scan', async (req: Request, res: Response) => {
       return;
     }
 
+    // ── On-chain contract validation (when contractPath is a 0x address) ──────
+    // Reject EOA (regular wallet) addresses before executing any scan or charge.
+    if (contractPath && /^0x[a-fA-F0-9]{40}$/.test(contractPath)) {
+      if (!isAddress(contractPath)) {
+        res.status(400).json({
+          error: 'Invalid Ethereum address format.',
+          hint: 'Contract addresses must be a valid 42-character hex address (0x...).',
+        });
+        return;
+      }
+
+      try {
+        const bytecode = await publicClient.getBytecode({
+          address: contractPath as `0x${string}`,
+        });
+
+        if (!bytecode || bytecode === '0x' || bytecode.length <= 2) {
+          res.status(400).json({
+            error: 'Address is not a smart contract.',
+            hint: 'The provided address appears to be a regular wallet (EOA) or an undeployed address. Please provide a deployed contract address.',
+            address: contractPath,
+          });
+          return;
+        }
+      } catch (rpcErr: any) {
+        // Non-fatal: if RPC fails, continue — but log it
+        console.warn(`⚠️  RPC bytecode check failed for ${contractPath}: ${rpcErr.message}`);
+      }
+    }
+
     const isCodeString = Boolean(sourceCode);
     const target = sourceCode || contractPath;
     const report = await executeScan(target, isCodeString);
 
-    res.json(report);
+    // Return markdown if requested, otherwise JSON
+    if (format === 'markdown' || format === 'md') {
+      res.set('Content-Type', 'text/markdown');
+      res.send(generateMarkdownReport(report));
+    } else {
+      res.json(report);
+    }
   } catch (error: any) {
     res.status(500).json({
       error: 'Scan execution failed',

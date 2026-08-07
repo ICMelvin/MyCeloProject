@@ -24,9 +24,12 @@ export const CELO_NETWORK = IS_MAINNET ? 'eip155:42220' : 'eip155:11142220';
 
 // USDC contract addresses (EIP-3009 compatible, required by x402 facilitator)
 // cUSD / USDm use EIP-2612 (permit) and are NOT supported by x402.celo.org
-export const USDC_ADDRESS = IS_MAINNET
-  ? '0xcEBA9300f2b948710d2653dD7B07f33A8B32118C'   // USDC — Celo Mainnet
-  : '0x01C5C0122039549AD1493B8220cABEdD739BC44E';   // USDC — Celo Sepolia
+// Can be overridden via USDC_ADDRESS env var
+export const USDC_ADDRESS = (process.env.USDC_ADDRESS as `0x${string}`) || (
+  IS_MAINNET
+    ? '0xcEBA9300f2b948710d2653dD7B07f33A8B32118C'   // USDC — Celo Mainnet
+    : '0x01C5C0122039549AD1493B8220cABEdD739BC44E'   // USDC — Celo Sepolia
+);
 
 // ─── x402 Payment Asset Config ───────────────────────────────────────────────
 export const USDC_ASSET_CONFIG = {
@@ -45,7 +48,7 @@ export const X402_CONFIG = {
 
   network: CELO_NETWORK,
   facilitatorUrl: process.env.FACILITATOR_URL || 'https://x402.celo.org',
-  pricePerScan: process.env.PRICE_PER_SCAN || '$0.01',
+  pricePerScan: process.env.PRICE_PER_SCAN || '$0.10',
 
   // ERC-8021 attribution
   attributionTag: ASSIGNED_ATTRIBUTION_TAG,

@@ -3,13 +3,18 @@
   "version": "1.0.0",
   "description": "FalconGuard Scan-Agent — x402-metered smart contract security scanner on Celo",
   "main": "dist/server.js",
+  "workspaces": [
+    "src/frontend"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "mcp": "tsx src/mcp/mcpServer.ts",
     "client-agent": "tsx src/client-agent/autoScanner.ts",
-    "scan-once": "tsx src/client-agent/autoScanner.ts"
+    "scan-once": "tsx src/client-agent/autoScanner.ts",
+    "frontend:dev": "cd src/frontend && npm run dev",
+    "frontend:build": "cd src/frontend && npm run build"
   },
   "keywords": [
     "celo",

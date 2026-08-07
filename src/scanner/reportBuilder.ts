@@ -168,3 +168,102 @@ export function buildScanReport(
     },
   };
 }
+
+// ─── Markdown Report Generator ───────────────────────────────────────────────────
+export function generateMarkdownReport(report: ScanReport): string {
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`# ${report.branding.product}`);
+  lines.push(``);
+  lines.push(`**Scan ID:** \`${report.scanId}\``);
+  lines.push(`**Target:** \`${report.target}\``);
+  lines.push(`**Timestamp:** ${report.timestamp}`);
+  lines.push(`**Duration:** ${report.scanDurationMs}ms`);
+  lines.push(`**Status:** ${report.status}`);
+  lines.push(``);
+
+  // Risk Score Badge
+  const riskScore = report.summary.riskScore;
+  let riskBadge = '🟢 LOW RISK';
+  if (riskScore >= 75) riskBadge = '🔴 CRITICAL RISK';
+  else if (riskScore >= 50) riskBadge = '🟠 HIGH RISK';
+  else if (riskScore >= 25) riskBadge = '🟡 MEDIUM RISK';
+
+  lines.push(`## Risk Assessment`);
+  lines.push(`**Overall Risk Score:** ${riskScore}/100 ${riskBadge}`);
+  lines.push(``);
+
+  // Summary Table
+  lines.push(`## Summary`);
+  lines.push(`| Severity | Count |`);
+  lines.push(`|----------|-------|`);
+  lines.push(`| 🔴 Critical | ${report.summary.critical} |`);
+  lines.push(`| 🟠 High | ${report.summary.high} |`);
+  lines.push(`| 🟡 Medium | ${report.summary.medium} |`);
+  lines.push(`| 🟢 Low | ${report.summary.low} |`);
+  lines.push(`| ℹ️  Informational | ${report.summary.informational} |`);
+  lines.push(`| **Total** | **${report.summary.totalFindings}** |`);
+  lines.push(``);
+
+  // Findings by Category
+  if (report.findings.length > 0) {
+    lines.push(`## Detailed Findings`);
+    lines.push(``);
+
+    const categoryGroups = new Map<string, SecurityFinding[]>();
+    report.findings.forEach(f => {
+      if (!categoryGroups.has(f.category)) {
+        categoryGroups.set(f.category, []);
+      }
+      categoryGroups.get(f.category)!.push(f);
+    });
+
+    categoryGroups.forEach((findings, category) => {
+      lines.push(`### ${category}`);
+      lines.push(``);
+
+      findings.forEach(finding => {
+        const emoji = severityEmoji(finding.severity);
+        lines.push(`#### ${emoji} - ${finding.title}`);
+        lines.push(`**ID:** \`${finding.id}\``);
+        if (finding.location) {
+          const location = finding.location.file 
+            ? `${finding.location.file}${finding.location.line ? `:${finding.location.line}` : ''}`
+            : finding.location.line 
+            ? `Line ${finding.location.line}`
+            : 'Unknown';
+          lines.push(`**Location:** ${location}`);
+        }
+        lines.push(``);
+        lines.push(finding.description);
+        lines.push(``);
+        lines.push(`**💡 Remediation:** ${finding.remediation}`);
+        lines.push(``);
+        lines.push(`---`);
+        lines.push(``);
+      });
+    });
+  } else {
+    lines.push(`## ✅ No Vulnerabilities Detected`);
+    lines.push(`No security issues were found by the automated analysis.`);
+    lines.push(``);
+  }
+
+  // Metadata
+  lines.push(`## Scan Metadata`);
+  lines.push(`- **Scanner Version:** ${report.metadata.scannerVersion}`);
+  lines.push(`- **Engines:** ${report.metadata.engines.join(', ')}`);
+  lines.push(`- **Slither Ran:** ${report.metadata.slitherRan ? '✅' : '❌'}`);
+  lines.push(`- **Custom Checks Ran:** ${report.metadata.customChecksRan ? '✅' : '❌'}`);
+  lines.push(`- **Network:** ${report.branding.network}`);
+  lines.push(`- **Attribution Tag:** \`${report.branding.attributionTag}\``);
+  lines.push(``);
+
+  // Disclaimer
+  lines.push(`---`);
+  lines.push(``);
+  lines.push(`*${report.branding.disclaimer}*`);
+
+  return lines.join('\n');
+}
