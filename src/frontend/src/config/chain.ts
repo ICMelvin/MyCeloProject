@@ -17,7 +17,7 @@ export const celoSepolia = defineChain({
   blockExplorers: {
     default: {
       name: 'Celo Sepolia Explorer',
-      url: 'https://explorer.sepolia.celo.org',
+      url: 'https://sepolia.celoscan.io',
     },
   },
   testnet: true,

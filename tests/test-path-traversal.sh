@@ -1,10 +1,8 @@
 #!/bin/bash
 # Test script to verify path traversal vulnerability is fixed
 # This should return 400 error, not file contents
-# Requires SKIP_PAYMENT_FOR_TESTS=true NODE_ENV=development to bypass payment middleware
 
 echo "Testing path traversal vulnerability fix..."
-echo "Note: This script requires SKIP_PAYMENT_FOR_TESTS=true NODE_ENV=development"
 echo ""
 
 # Test 1: Relative path traversal (../../.env)

@@ -44,7 +44,7 @@ Scan a smart contract for security vulnerabilities.
 }
 ```
 
-**Note:** Either `contractPath` (valid 0x address) or `sourceCode` (raw Solidity string) must be provided. `contractPath` must be a valid 42-character hex address (0x...). Local file paths are not accepted for security reasons.
+**Note:** Either `contractPath` (on-chain contract address as 0x-prefixed hex) or `sourceCode` (Solidity source code string) must be provided. Local file paths are not accepted via the public API.
 
 **Response (402 Payment Required):**
 ```json
@@ -135,7 +135,7 @@ registerExactEvmScheme(httpClient, walletClient);
 const initialRes = await fetch('http://localhost:3000/scan', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ sourceCode: 'pragma solidity ^0.8.0; contract Test { ... }' }),
+  body: JSON.stringify({ sourceCode: 'pragma solidity ^0.8.0; contract Test {}' }),
 });
 
 if (initialRes.status === 402) {
@@ -154,7 +154,7 @@ if (initialRes.status === 402) {
       'Content-Type': 'application/json',
       ...paymentHeaders,
     },
-    body: JSON.stringify({ sourceCode: 'pragma solidity ^0.8.0; contract Test { ... }' }),
+    body: JSON.stringify({ sourceCode: 'pragma solidity ^0.8.0; contract Test {}' }),
   });
   
   // 5. Process result
@@ -175,14 +175,14 @@ if (initialRes.status === 402) {
 # 1. Initial request (will return 402)
 curl -X POST http://localhost:3000/scan \
   -H "Content-Type: application/json" \
-  -d '{"sourceCode": "pragma solidity ^0.8.0; contract Test { ... }"}'
+  -d '{"sourceCode": "pragma solidity ^0.8.0; contract Test {}"}'
 
 # 2. Create payment signature using x402 client
 # 3. Retry with PAYMENT-SIGNATURE header
 curl -X POST http://localhost:3000/scan \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <base64-encoded-payment>" \
-  -d '{"sourceCode": "pragma solidity ^0.8.0; contract Test { ... }"}'
+  -d '{"sourceCode": "pragma solidity ^0.8.0; contract Test {}"}'
 ```
 
 ---
@@ -240,7 +240,7 @@ CLIENT_AGENT_PRIVATE_KEY=your_private_key_here
 
 | Status | Error | Description |
 |--------|-------|-------------|
-| 400 | Bad Request | Missing contractPath or sourceCode, or invalid contract path format |
+| 400 | Bad Request | Missing contractPath (must be 0x address) or sourceCode, or invalid address format |
 | 402 | Payment Required | x402 payment signature needed |
 | 500 | Internal Error | Scan execution failed |
 
@@ -254,7 +254,7 @@ CLIENT_AGENT_PRIVATE_KEY=your_private_key_here
 curl -X POST "http://localhost:3000/scan?format=markdown" \
   -H "Content-Type: application/json" \
   -H "PAYMENT-SIGNATURE: <payment>" \
-  -d '{"sourceCode": "pragma solidity ^0.8.0; contract Test { ... }"}'
+  -d '{"sourceCode": "pragma solidity ^0.8.0; contract Test {}"}'
 ```
 
 ### Scan with Source Code String

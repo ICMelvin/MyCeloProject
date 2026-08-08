@@ -19,6 +19,8 @@ import { celoAlfajores } from 'viem/chains';
 import { x402HTTPClient, x402Client } from '@x402/core/client';
 import { registerExactEvmScheme } from '@x402/evm/exact/client';
 import { X402_CONFIG, ASSIGNED_ATTRIBUTION_TAG, INTERNAL_APP_TAG, USDC_ADDRESS, CELO_NETWORK } from '../payments/x402Config.js';
+import { fetchVerifiedSourceCode } from '../scanner/sourceFetcher.js';
+import { getNetworkConfigFromEnv } from '../config/networkConfig.js';
 
 dotenv.config();
 
@@ -27,28 +29,30 @@ const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000/scan';
 const PRIVATE_KEY = process.env.CLIENT_AGENT_PRIVATE_KEY as `0x${string}` | undefined;
 const TX_LOG_PATH = path.resolve('./tx-log.md');
 
-// Celo Sepolia chain definition for viem
-// Chain ID 11142220
-const celoSepolia = {
+// Get network configuration
+const networkConfig = getNetworkConfigFromEnv();
+
+// Celo chain definition for viem (dynamic based on network)
+const celoChain = {
   ...celoAlfajores,
-  id: 11142220,
-  name: 'Celo Sepolia',
-  network: 'celo-sepolia',
+  id: networkConfig.chainId,
+  name: networkConfig.networkName === 'celoMainnet' ? 'Celo' : 'Celo Sepolia',
+  network: networkConfig.networkName === 'celoMainnet' ? 'celo' : 'celo-sepolia',
   rpcUrls: {
     default: {
-      http: [process.env.RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org'],
+      http: [process.env.RPC_URL || networkConfig.rpcUrl],
     },
     public: {
-      http: [process.env.RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org'],
+      http: [process.env.RPC_URL || networkConfig.rpcUrl],
     },
   },
   blockExplorers: {
     default: {
-      name: 'Celo Sepolia Explorer',
-      url: 'https://explorer.sepolia.celo.org',
+      name: networkConfig.networkName === 'celoMainnet' ? 'Celo Explorer' : 'Celo Sepolia Explorer',
+      url: networkConfig.explorerUrl,
     },
   },
-  testnet: true,
+  testnet: networkConfig.networkName === 'celoSepolia',
 } as const;
 
 // ─── Scan Targets ─────────────────────────────────────────────────────────────
@@ -84,7 +88,7 @@ function initTxLog(): void {
 }
 
 function logTx(index: number, contractName: string, txHash: string): void {
-  const explorerUrl = `https://explorer.sepolia.celo.org/tx/${txHash}`;
+  const explorerUrl = `${networkConfig.explorerUrl}/tx/${txHash}`;
   const row = `| ${index} | ${new Date().toISOString()} | \`${contractName}\` | \`${txHash}\` | [View](${explorerUrl}) |\n`;
   fs.appendFileSync(TX_LOG_PATH, row);
   console.log(`  📝 Tx logged: ${explorerUrl}`);
@@ -96,13 +100,18 @@ async function fetchContractSourceCode(
   publicClient: any,
 ): Promise<string | null> {
   try {
-    // Try to get contract code from RPC
+    // Use the shared Blockscout source fetcher
+    const fetchedSource = await fetchVerifiedSourceCode(address);
+    if (fetchedSource) {
+      console.log(`  ✅ Fetched verified source for ${fetchedSource.contractName} at ${address}`);
+      return fetchedSource.sourceCode;
+    }
+    
+    // Fallback: check if contract has bytecode (even if unverified)
     const code = await publicClient.getBytecode({ address: address as `0x${string}` });
     if (code && code !== '0x') {
-      // For now, return a placeholder indicating we have bytecode
-      // In production, we'd use a block explorer API to get verified source code
-      console.log(`  ℹ️  Contract at ${address} has bytecode (${code.length / 2 - 1} bytes)`);
-      return `// Contract bytecode available at ${address}\n// Source code verification via block explorer required for full analysis`;
+      console.log(`  ℹ️  Contract at ${address} has bytecode but is not verified on block explorer`);
+      return null;
     }
     return null;
   } catch (err: any) {
@@ -282,16 +291,16 @@ async function runAutoScanner(): Promise<void> {
     account = privateKeyToAccount(PRIVATE_KEY!);
     walletClient = createWalletClient({
       account,
-      chain: celoSepolia,
-      transport: http(process.env.RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org'),
+      chain: celoChain,
+      transport: http(process.env.RPC_URL || networkConfig.rpcUrl),
     });
     console.log(`  Agent Wallet: ${account.address}`);
   }
 
   // ── Public client for contract fetching ────────────────────────────────────
   const publicClient = createPublicClient({
-    chain: celoSepolia,
-    transport: http(process.env.RPC_URL || 'https://forno.celo-sepolia.celo-testnet.org'),
+    chain: celoChain,
+    transport: http(process.env.RPC_URL || networkConfig.rpcUrl),
   });
 
   // ── Tx log init ───────────────────────────────────────────────────────────

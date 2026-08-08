@@ -1,5 +1,6 @@
 import * as dotenv from 'dotenv';
 import { toDataSuffix } from '@celo/attribution-tags';
+import { getNetworkConfigFromEnv } from '../config/networkConfig.js';
 
 dotenv.config();
 
@@ -16,20 +17,14 @@ export function getAttributionDataSuffix(): `0x${string}` {
 }
 
 // ─── Network Configuration ───────────────────────────────────────────────────
-// Celo Sepolia testnet (Chain ID 11142220)
-// Celo Mainnet          (Chain ID 42220)
-const IS_MAINNET = process.env.NETWORK === 'celo-mainnet';
+// Use centralized network config
+const networkConfig = getNetworkConfigFromEnv();
 
-export const CELO_NETWORK = IS_MAINNET ? 'eip155:42220' : 'eip155:11142220';
+export const CELO_NETWORK = `eip155:${networkConfig.chainId}`;
 
 // USDC contract addresses (EIP-3009 compatible, required by x402 facilitator)
-// cUSD / USDm use EIP-2612 (permit) and are NOT supported by x402.celo.org
 // Can be overridden via USDC_ADDRESS env var
-export const USDC_ADDRESS = (process.env.USDC_ADDRESS as `0x${string}`) || (
-  IS_MAINNET
-    ? '0xcEBA9300f2b948710d2653dD7B07f33A8B32118C'   // USDC — Celo Mainnet
-    : '0x01C5C0122039549AD1493B8220cABEdD739BC44E'   // USDC — Celo Sepolia
-);
+export const USDC_ADDRESS = (process.env.USDC_ADDRESS as `0x${string}`) || networkConfig.usdcAddress;
 
 // ─── x402 Payment Asset Config ───────────────────────────────────────────────
 export const USDC_ASSET_CONFIG = {
@@ -47,7 +42,7 @@ export const X402_CONFIG = {
   payTo: (process.env.PAYTO_ADDRESS || '0x0000000000000000000000000000000000000000') as `0x${string}`,
 
   network: CELO_NETWORK,
-  facilitatorUrl: process.env.FACILITATOR_URL || 'https://x402.celo.org',
+  facilitatorUrl: process.env.FACILITATOR_URL || networkConfig.facilitatorUrl,
   pricePerScan: process.env.PRICE_PER_SCAN || '$0.10',
 
   // ERC-8021 attribution

@@ -61,6 +61,8 @@ export interface ScanReport {
     scanDurationMs: number;
     scannerVersion: string;
     engines: string[];
+    contractName?: string;
+    onChainAddress?: string;
   };
   branding: {
     product: string;

@@ -2,7 +2,7 @@ import { ScanResult } from './ScanResults';
 
 const EXPLORER_BASE = import.meta.env.VITE_NETWORK === 'mainnet'
   ? 'https://celoscan.io'
-  : 'https://explorer.sepolia.celo.org';
+  : 'https://sepolia.celoscan.io';
 
 interface ScanHistoryProps {
   history: ScanResult[];

@@ -3,8 +3,10 @@
   "skills": {
     "celo-builders": {
       "source": "celobuilders.xyz",
+      "sourceUrl": "https://celobuilders.xyz",
       "sourceType": "well-known",
-      "computedHash": "9b383bb781aa0fcf607928f46a1491e95368c8c0886c387b7a936f3ae35ee4b4"
+      "computedHash": "9b383bb781aa0fcf607928f46a1491e95368c8c0886c387b7a936f3ae35ee4b4",
+      "wellKnownDigest": "sha256:fab08465c989c3fd4cd44a4f224c43109bac181a95b2027cf1829639b108fcab"
     }
   }
 }

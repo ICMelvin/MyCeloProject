@@ -11,6 +11,7 @@ import { ExactEvmScheme } from '@x402/evm/exact/server';
 import { runSlitherScan } from './scanner/slitherRunner.js';
 import { runCustomChecks } from './scanner/customChecks.js';
 import { buildScanReport, ScanReport, generateMarkdownReport } from './scanner/reportBuilder.js';
+import { fetchVerifiedSourceCode } from './scanner/sourceFetcher.js';
 import {
   X402_CONFIG,
   getAttributionDataSuffix,
@@ -38,12 +39,8 @@ const publicClient = createPublicClient({
 });
 
 // ─── x402 v2 Facilitator Setup (Celo-hosted) ───────────────────────────────────
-const facilitatorUrl = CELO_NETWORK === 'eip155:42220'
-  ? 'https://api.x402.celo.org'
-  : 'https://api.x402.sepolia.celo.org';
-
 const facilitator = new HTTPFacilitatorClient({
-  url: facilitatorUrl,
+  url: X402_CONFIG.facilitatorUrl as `${string}:${string}`,
   createAuthHeaders: async () => {
     const apiKey = process.env.X402_API_KEY;
     if (!apiKey) {
@@ -91,7 +88,7 @@ const routes: RoutesConfig = {
     accepts: [
       {
         scheme: 'exact',
-        network: CELO_NETWORK,
+        network: CELO_NETWORK as `${string}:${string}`,
         payTo: X402_CONFIG.payTo,
         price: {
           amount: '100000', // $0.10 — USDC has 6 decimals
@@ -125,7 +122,10 @@ if (SKIP_PAYMENT) {
 
 // Apply payment middleware only if not bypassed
 if (!SKIP_PAYMENT) {
+  console.log('🔒 Payment middleware enabled - all /scan requests require x402 payment');
   app.use(paymentMiddleware(routes, server));
+} else {
+  console.log('⚠️  PAYMENT MIDDLEWARE BYPASSED - scans will be FREE');
 }
 
 // ─── Core Scan Execution ─────────────────────────────────────────────────────
@@ -262,15 +262,35 @@ app.post('/scan', async (req: Request, res: Response) => {
     }
 
     // ── Execute scan using safe public API function ─────────────────────────
-    // Note: For on-chain addresses, source code must be provided via sourceCode parameter
-    // On-chain source code fetching is not implemented in this version
     let report: ScanReport;
     if (sourceCode) {
+      // Direct source code provided by user
       report = await executeScanFromSource(sourceCode);
+    } else if (contractPath) {
+      // Fetch verified source code from Blockscout for on-chain address
+      const fetchedSource = await fetchVerifiedSourceCode(contractPath);
+      
+      if (!fetchedSource) {
+        res.status(400).json({
+          error: 'Contract source is not verified on Celo Sepolia block explorer.',
+          hint: 'Please provide sourceCode directly in your request, or verify your contract on the block explorer first.',
+          address: contractPath,
+        });
+        return;
+      }
+      
+      // Scan the fetched source code
+      report = await executeScanFromSource(fetchedSource.sourceCode);
+      
+      // Enrich report metadata with contract info
+      report.metadata = {
+        ...report.metadata,
+        contractName: fetchedSource.contractName,
+        onChainAddress: contractPath,
+      };
     } else {
       res.status(400).json({
-        error: 'Source code required for contract address scanning.',
-        hint: 'For scanning on-chain contracts, please provide the source code using the sourceCode parameter. contractPath is reserved for future on-chain source code fetching.',
+        error: 'Either contractPath (on-chain address) or sourceCode must be provided.',
       });
       return;
     }

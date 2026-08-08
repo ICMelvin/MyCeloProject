@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const EXPLORER_BASE = import.meta.env.VITE_NETWORK === 'mainnet'
   ? 'https://celoscan.io'
-  : 'https://explorer.sepolia.celo.org';
+  : 'https://sepolia.celoscan.io';
 
 export interface Finding {
   id: string;
