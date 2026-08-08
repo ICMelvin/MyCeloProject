@@ -6,7 +6,7 @@ const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 const isMainnet = import.meta.env.VITE_NETWORK === 'mainnet';
 
 export const config = createConfig({
-  chains: isMainnet ? [celoMainnet] : [celoSepolia],
+  chains: [celoSepolia, celoMainnet],
   connectors: [
     walletConnect({
       projectId: projectId || '',
