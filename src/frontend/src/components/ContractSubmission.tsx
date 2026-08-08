@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useAccount, useSignTypedData } from 'wagmi';
 import { x402HTTPClient, x402Client } from '@x402/core/client';
 import { registerExactEvmScheme } from '@x402/evm/exact/client';
+import { API_URL } from '../config/api';
 
 interface ContractSubmissionProps {
   onScanStart: () => void;
@@ -95,7 +96,7 @@ export default function ContractSubmission({
       }
 
       // Step 1: Initial request - expect 402
-      const initialRes = await fetch('/scan', {
+      const initialRes = await fetch(`${API_URL}/scan`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
@@ -152,7 +153,7 @@ export default function ContractSubmission({
       const paymentHeaders = httpClient.encodePaymentSignatureHeader(paymentPayload);
 
       // Step 5: Retry with payment
-      const paidRes = await fetch('/scan', {
+      const paidRes = await fetch(`${API_URL}/scan`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
