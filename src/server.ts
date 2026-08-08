@@ -18,8 +18,55 @@ import {
   USDC_ADDRESS,
   CELO_NETWORK,
 } from './payments/x402Config.js';
+import { getNetworkConfigFromEnv } from './config/networkConfig.js';
 
 dotenv.config();
+
+// ─── Network Configuration Validation ───────────────────────────────────────────
+// Validate that env var overrides match the selected network
+const networkConfig = getNetworkConfigFromEnv();
+const networkName = networkConfig.networkName;
+
+function validateNetworkOverride(
+  envVarName: string,
+  envValue: string | undefined,
+  expectedValue: string,
+  networkName: string
+): void {
+  if (!envValue) return; // No override, using default
+
+  if (envValue !== expectedValue) {
+    console.warn(`\n⚠️  NETWORK CONFIGURATION MISMATCH DETECTED ⚠️`);
+    console.warn(`  Environment Variable: ${envVarName}`);
+    console.warn(`  Current Network: ${networkName}`);
+    console.warn(`  Expected Value: ${expectedValue}`);
+    console.warn(`  Actual Override: ${envValue}`);
+    console.warn(`  ⚠️  This override may belong to a different network!`);
+    console.warn(`  ⚠️  Remove the env var or update it to match the selected network.\n`);
+  }
+}
+
+// Validate each network-specific override
+validateNetworkOverride(
+  'FACILITATOR_URL',
+  process.env.FACILITATOR_URL,
+  networkConfig.facilitatorUrl,
+  networkName
+);
+
+validateNetworkOverride(
+  'USDC_ADDRESS',
+  process.env.USDC_ADDRESS,
+  networkConfig.usdcAddress,
+  networkName
+);
+
+validateNetworkOverride(
+  'RPC_URL',
+  process.env.RPC_URL,
+  networkConfig.rpcUrl,
+  networkName
+);
 
 const app = express();
 app.use(cors());
