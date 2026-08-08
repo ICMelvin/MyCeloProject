@@ -123,8 +123,24 @@ export default function ContractSubmission({
         return;
       }
 
-      // Step 2: Parse payment requirements
-      const paymentResponseJson = await initialRes.json();
+      // Step 2: Parse payment requirements from header (x402 v2 format)
+      const paymentRequiredHeader = initialRes.headers.get('payment-required');
+      let paymentResponseJson: any = {};
+      
+      if (paymentRequiredHeader) {
+        try {
+          // Decode base64 header
+          const decoded = atob(paymentRequiredHeader);
+          paymentResponseJson = JSON.parse(decoded);
+        } catch (e) {
+          console.error('Failed to decode payment-required header:', e);
+          onScanComplete({ error: 'Invalid payment requirements from server' });
+          return;
+        }
+      } else {
+        // Fallback: try parsing from body (for compatibility)
+        paymentResponseJson = await initialRes.json();
+      }
       
       // Step 3: Create x402 client and parse payment requirements
       const client = new x402Client();
