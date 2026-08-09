@@ -296,6 +296,8 @@ app.post('/scan', async (req: Request, res: Response) => {
           address: contractPath as `0x${string}`,
         });
 
+        // Check if address has bytecode (contracts have bytecode, EOAs don't)
+        // Valid contract bytecode is longer than '0x' (2 characters)
         if (!bytecode || bytecode === '0x' || bytecode.length <= 2) {
           res.status(400).json({
             error: 'Address is not a smart contract.',
@@ -305,8 +307,15 @@ app.post('/scan', async (req: Request, res: Response) => {
           return;
         }
       } catch (rpcErr: any) {
-        // Non-fatal: if RPC fails, continue — but log it
-        console.warn(`⚠️  RPC bytecode check failed for ${contractPath}: ${rpcErr.message}`);
+        // If RPC fails, we can't determine if it's a contract
+        // Return error to avoid scanning potentially invalid addresses
+        res.status(400).json({
+          error: 'Failed to validate contract address.',
+          hint: 'Unable to verify if the address is a smart contract. The RPC endpoint may be unavailable. Please try again or provide sourceCode directly.',
+          address: contractPath,
+          details: rpcErr.message,
+        });
+        return;
       }
     }
 
