@@ -141,18 +141,8 @@ export default function ContractSubmission({
       });
 
       const httpClient = new x402HTTPClient(client);
-      
-      // DEBUG: Log actual runtime values before getPaymentRequiredResponse
-      console.log('=== X402 PAYMENT PARSING DEBUG ===');
-      console.log('Raw header value:', initialRes.headers.get('payment-required'));
-      console.log('Body used:', initialRes.bodyUsed);
-      console.log('getHeader function:', (name) => initialRes.headers.get(name));
-      console.log('Body parameter being passed:', undefined);
-      console.log('x402/core version: 2.0.0 (from package.json)');
-      console.log('=====================================');
-      
       const paymentRequired = httpClient.getPaymentRequiredResponse(
-        (name) => initialRes.headers.get(name),
+        (name: string) => initialRes.headers.get(name),
         undefined,  // Let library handle header decoding, don't pass body
       );
       
