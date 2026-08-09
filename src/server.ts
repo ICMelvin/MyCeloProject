@@ -307,15 +307,9 @@ app.post('/scan', async (req: Request, res: Response) => {
           return;
         }
       } catch (rpcErr: any) {
-        // If RPC fails, we can't determine if it's a contract
-        // Return error to avoid scanning potentially invalid addresses
-        res.status(400).json({
-          error: 'Failed to validate contract address.',
-          hint: 'Unable to verify if the address is a smart contract. The RPC endpoint may be unavailable. Please try again or provide sourceCode directly.',
-          address: contractPath,
-          details: rpcErr.message,
-        });
-        return;
+        // Non-fatal: if RPC fails, continue with source fetch attempt
+        // The source fetcher will fail if the contract doesn't exist
+        console.warn(`⚠️  RPC bytecode check failed for ${contractPath}: ${rpcErr.message}`);
       }
     }
 
