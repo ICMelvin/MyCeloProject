@@ -69,7 +69,9 @@ validateNetworkOverride(
 );
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  exposedHeaders: ['payment-required', 'payment-response', 'x-payment-response', 'payment-signature', 'PAYMENT-SIGNATURE'],
+}));
 app.use(express.json({ limit: '2mb' }));
 
 const PORT = process.env.PORT || 3000;
