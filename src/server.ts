@@ -129,6 +129,28 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
+// ─── ERC-8004 Agent Metadata (public, no payment required) ─────────────────────
+app.get('/.well-known/agent-card.json', (_req: Request, res: Response) => {
+  res.json({
+    type: "Agent",
+    name: "FalconGuard Scan-Agent",
+    description: "x402-metered smart contract security scanner on Celo. Pay-per-scan using real USDC settlement via EIP-3009. Powered by Slither static analysis and custom vulnerability detection rules.",
+    endpoints: [
+      {
+        type: "wallet",
+        address: "0x41dbdBBB116C5eFb9c0290b9A4A61502361b5bB9",
+        chainId: 42220
+      },
+      {
+        type: "api",
+        url: "https://myceloproject-production.up.railway.app/scan",
+        description: "POST endpoint for smart contract scans, x402-metered at $0.10 USDC per scan"
+      }
+    ],
+    supportedTrust: ["reputation"]
+  });
+});
+
 // ─── x402 Payment Gate (v2 API) ───────────────────────────────────────────────
 // Every POST /scan requires a valid x402 micropayment (USDC on Celo Sepolia).
 // The middleware:
