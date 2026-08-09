@@ -17,9 +17,10 @@ export async function fetchVerifiedSourceCode(
   address: string
 ): Promise<SourceCodeResult | null> {
   const networkConfig = getNetworkConfigFromEnv();
+  // Use the correct Blockscout API endpoints for Celo
   const BLOCKSCOUT_API_URL = networkConfig.networkName === 'celoMainnet'
-    ? 'https://celo.blockscout.com/api'
-    : 'https://celo-sepolia.blockscout.com/api';
+    ? 'https://celoscan.io/api'
+    : 'https://sepolia.celoscan.io/api';
 
   try {
     // 10-second timeout using AbortController
