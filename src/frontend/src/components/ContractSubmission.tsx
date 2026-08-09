@@ -124,7 +124,8 @@ export default function ContractSubmission({
       }
 
       // Step 2: Parse payment requirements from header (x402 v2 format)
-      const paymentRequiredHeader = initialRes.headers.get('payment-required');
+      // NOTE: Header name must be uppercase 'PAYMENT-REQUIRED' to match x402 library expectation
+      const paymentRequiredHeader = initialRes.headers.get('PAYMENT-REQUIRED');
       let paymentResponseJson: any = {};
       
       if (paymentRequiredHeader) {
