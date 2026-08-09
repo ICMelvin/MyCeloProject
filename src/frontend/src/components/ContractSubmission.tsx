@@ -166,7 +166,7 @@ export default function ContractSubmission({
       try {
         const result = await httpClient.processPaymentResult(
           paymentPayload,
-          (name) => paidRes.headers.get(name),
+          (name: string) => paidRes.headers.get(name),
           paidRes.status,
         );
 
