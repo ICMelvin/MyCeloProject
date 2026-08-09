@@ -123,27 +123,8 @@ export default function ContractSubmission({
         return;
       }
 
-      // Step 2: Parse payment requirements from header (x402 v2 format)
-      // NOTE: Header name must be uppercase 'PAYMENT-REQUIRED' to match x402 library expectation
-      const paymentRequiredHeader = initialRes.headers.get('PAYMENT-REQUIRED');
-      let paymentResponseJson: any = {};
-      
-      if (paymentRequiredHeader) {
-        try {
-          // Decode base64 header
-          const decoded = atob(paymentRequiredHeader);
-          paymentResponseJson = JSON.parse(decoded);
-        } catch (e) {
-          console.error('Failed to decode payment-required header:', e);
-          onScanComplete({ error: 'Invalid payment requirements from server' });
-          return;
-        }
-      } else {
-        // Fallback: try parsing from body (for compatibility)
-        paymentResponseJson = await initialRes.json();
-      }
-      
-      // Step 3: Create x402 client and parse payment requirements
+      // Step 2: Create x402 client and parse payment requirements
+      // NOTE: Let the x402 library handle header decoding - don't manually decode
       const client = new x402Client();
       registerExactEvmScheme(client, {
         signer: {
@@ -158,18 +139,18 @@ export default function ContractSubmission({
           },
         } as any,
       });
-      
+
       const httpClient = new x402HTTPClient(client);
       const paymentRequired = httpClient.getPaymentRequiredResponse(
         (name) => initialRes.headers.get(name),
-        paymentResponseJson,
+        undefined,  // Let library handle header decoding, don't pass body
       );
       
-      // Step 4: Create payment payload
+      // Step 3: Create payment payload
       const paymentPayload = await httpClient.createPaymentPayload(paymentRequired);
       const paymentHeaders = httpClient.encodePaymentSignatureHeader(paymentPayload);
 
-      // Step 5: Retry with payment
+      // Step 4: Retry with payment
       const paidRes = await fetch(`${API_URL}/scan`, {
         method: 'POST',
         headers: {
@@ -181,7 +162,7 @@ export default function ContractSubmission({
 
       const responseText = await paidRes.text();
 
-      // Process payment result first (matching CLI pattern)
+      // Step 5: Process payment result
       try {
         const result = await httpClient.processPaymentResult(
           paymentPayload,
