@@ -77,14 +77,9 @@ app.use(express.json({ limit: '2mb' }));
 const PORT = process.env.PORT || 3000;
 
 // ─── Celo RPC Public Client (for on-chain contract validation) ────────────────
-const RPC_URL = process.env.RPC_URL || (
-  CELO_NETWORK === 'eip155:42220'
-    ? 'https://forno.celo.org'
-    : 'https://forno.celo-sepolia.celo-testnet.org'
-);
-
+// Use the same networkConfig.rpcUrl as everything else for consistency
 const publicClient = createPublicClient({
-  transport: viemHttp(RPC_URL),
+  transport: viemHttp(networkConfig.rpcUrl),
 });
 
 // ─── x402 v2 Facilitator Setup (Celo-hosted) ───────────────────────────────────
@@ -110,6 +105,19 @@ app.get('/health', (_req: Request, res: Response) => {
     status: 'online',
     service: 'FalconGuard Scan-Agent',
     version: '1.0.0',
+    debug: {
+      networkConfig: {
+        chainId: networkConfig.chainId,
+        networkName: networkConfig.networkName,
+        rpcUrl: networkConfig.rpcUrl,
+        explorerUrl: networkConfig.explorerUrl,
+        facilitatorUrl: networkConfig.facilitatorUrl,
+      },
+      envVars: {
+        RPC_URL: process.env.RPC_URL || '(not set - using default)',
+        NETWORK: process.env.NETWORK || '(not set - using default)',
+      },
+    },
     metering: {
       price: X402_CONFIG.pricePerScan,
       network: X402_CONFIG.network,
